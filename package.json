@@ -12,18 +12,6 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./phases/*": {
-      "types": "./dist/phases/*.d.ts",
-      "import": "./dist/phases/*.js"
-    },
-    "./adapters/*": {
-      "types": "./dist/adapters/*.d.ts",
-      "import": "./dist/adapters/*.js"
-    },
-    "./storage/*": {
-      "types": "./dist/storage/*.d.ts",
-      "import": "./dist/storage/*.js"
     }
   },
   "files": [
