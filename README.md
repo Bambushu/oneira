@@ -28,30 +28,31 @@ If you work in a repo every day, the output should feel less like a log and more
 
 ## What You Wake Up To
 
-```text
-Morning Gift for 2026-04-03
+You open your terminal. One command:
 
-Top 3 priorities
-1. Checkout currency path is inconsistent: UI shows EUR, charge path still defaults to GBP.
-   Why it matters: likely revenue-impacting and customer-visible.
-   Next step: inspect checkout total formatter and payment intent creation side by side.
-
-2. PR #47 has been open for 9 days and touches auth, billing, and middleware.
-   Why it matters: broad diffs are stalling review and increasing merge risk.
-   Next step: split the middleware extraction into a separate PR.
-
-3. Hypothesis: Tuesday deploys create more hotfixes because they batch unrelated changes.
-   Evidence: 6 of the last 8 hotfixes landed within 24h of Tuesday releases.
-   Next step: compare hotfix rate for smaller midweek deploys over the next 2 weeks.
-
-Drafts ready
-- PR description for feat/auth-session-rotation
-- Changelog entry for v0.4.0
-
-Dream quality: 8/10
+```bash
+$ oneira journal
 ```
 
-That is the bar. A developer should read it and know what to do next.
+> **Morning Gift** - April 3, 2026
+>
+> **1. Currency bug in checkout** (revenue-impacting)
+> UI shows EUR, but the payment intent still defaults to GBP.
+> *Check `checkout/formatTotal.ts` against `payments/createIntent.ts`.*
+>
+> **2. PR #47 is stalling** (9 days open, 3 reviewers requested)
+> It touches auth, billing, and middleware in one diff.
+> *Split the middleware extraction into its own PR first.*
+>
+> **3. Tuesday deploys cause 2x hotfixes** (hypothesis)
+> 6 of the last 8 hotfixes landed within 24h of a Tuesday release.
+> *Test: compare hotfix rate for smaller Wed/Thu deploys over 2 weeks.*
+>
+> **Drafts ready:** PR description for `feat/auth-session-rotation`, changelog for v0.4.0
+>
+> Dream quality: 8/10 - 11 insights, 0 nightmares
+
+Three priorities. Each tells you *what*, *why it matters*, and *what to do next*. Plus pre-written drafts you can edit and ship.
 
 ## Why It Exists
 
