@@ -28,6 +28,7 @@ interface OrchestratorOptions {
   memory: MemoryStore;
   phases: Map<PhaseId, PhaseHandler>;
   now?: Date;
+  partialRun?: boolean;
 }
 
 export class Orchestrator {
@@ -37,6 +38,7 @@ export class Orchestrator {
   private memory: MemoryStore;
   private phases: Map<PhaseId, PhaseHandler>;
   private now: Date;
+  private partialRun: boolean;
 
   constructor(options: OrchestratorOptions) {
     this.config = options.config;
@@ -45,21 +47,34 @@ export class Orchestrator {
     this.memory = options.memory;
     this.phases = options.phases;
     this.now = options.now || new Date();
+    this.partialRun = options.partialRun || false;
   }
 
   async run(): Promise<void> {
     const dreamDate = calculateDreamDate(this.now);
-    let state = await this.storage.readState();
+    let state: DreamState;
 
-    // Start or resume cycle
-    if (state.currentDreamDate !== dreamDate) {
+    if (this.partialRun) {
+      // Partial runs don't touch state
       state = {
         currentDreamDate: dreamDate,
         completedPhases: [],
         lastDreamAt: null,
-        lucidPrompt: state.lucidPrompt,
+        lucidPrompt: null,
       };
-      await this.storage.writeState(state);
+    } else {
+      state = await this.storage.readState();
+
+      // Start or resume cycle
+      if (state.currentDreamDate !== dreamDate) {
+        state = {
+          currentDreamDate: dreamDate,
+          completedPhases: [],
+          lastDreamAt: null,
+          lucidPrompt: state.lucidPrompt,
+        };
+        await this.storage.writeState(state);
+      }
     }
 
     // Resolve lucid prompt: state (one-shot) wins over config (persistent)
@@ -96,8 +111,10 @@ export class Orchestrator {
       // Idempotency: check if journal already has this phase's header
       const header = PHASE_JOURNAL_HEADERS[phaseId];
       if (journalContent.includes(header)) {
-        state.completedPhases.push(phaseId);
-        await this.storage.writeState(state);
+        if (!this.partialRun) {
+          state.completedPhases.push(phaseId);
+          await this.storage.writeState(state);
+        }
         continue;
       }
 
@@ -113,7 +130,22 @@ export class Orchestrator {
         lucid,
       };
 
-      const result: PhaseResult = await handler(ctx);
+      let result: PhaseResult;
+      try {
+        result = await handler(ctx);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        process.stderr.write(`[ERROR] Phase ${phaseId} failed: ${message}\n`);
+        journalContent += `${header}\n\nPhase failed: ${message}\n\n`;
+        await this.storage.writeJournal(dreamDate, journalContent);
+        if (!this.partialRun) {
+          state.completedPhases.push(phaseId);
+          state.lastDreamAt = new Date().toISOString();
+          await this.storage.writeState(state);
+        }
+        process.stdout.write(`Dream phase ${phaseId} failed. ${state.completedPhases.length}/${this.config.phases.length} phases done.\n`);
+        continue;
+      }
 
       journalEntries.push({
         phase: result.phase,
@@ -137,9 +169,11 @@ export class Orchestrator {
 
       await this.storage.writeJournal(dreamDate, journalContent);
 
-      state.completedPhases.push(phaseId);
-      state.lastDreamAt = new Date().toISOString();
-      await this.storage.writeState(state);
+      if (!this.partialRun) {
+        state.completedPhases.push(phaseId);
+        state.lastDreamAt = new Date().toISOString();
+        await this.storage.writeState(state);
+      }
 
       process.stdout.write(`Dream phase ${phaseId} complete. ${state.completedPhases.length}/${this.config.phases.length} phases done.\n`);
     }
@@ -149,28 +183,30 @@ export class Orchestrator {
       await this.storage.writeDraft(dreamDate, `${draft.type}-${draft.name}.md`, draft.content);
     }
 
-    // Compile and append Morning Gift
-    const priorities = this.extractPriorities(journalEntries);
-    const morningGift = this.compileMorningGift(allInsights, priorities, allDrafts, lucid);
-    journalContent += morningGift;
+    if (!this.partialRun) {
+      // Compile and append Morning Gift
+      const priorities = this.extractPriorities(journalEntries);
+      const morningGift = this.compileMorningGift(allInsights, priorities, allDrafts, lucid);
+      journalContent += morningGift;
 
-    // Update journal header with final scores
-    const completedCount = state.completedPhases.length;
-    const totalPhases = this.config.phases.length;
-    journalContent = journalContent
-      .replace('Score: ?/10', `Score: ${this.estimateQuality(journalEntries)}/10`)
-      .replace(`Phases completed: 0/${totalPhases}`, `Phases completed: ${completedCount}/${totalPhases}`)
-      .replace('Actionable insights: 0', `Actionable insights: ${allInsights.length}`);
+      // Update journal header with final scores
+      const completedCount = state.completedPhases.length;
+      const totalPhases = this.config.phases.length;
+      journalContent = journalContent
+        .replace('Score: ?/10', `Score: ${this.estimateQuality(journalEntries)}/10`)
+        .replace(`Phases completed: 0/${totalPhases}`, `Phases completed: ${completedCount}/${totalPhases}`)
+        .replace('Actionable insights: 0', `Actionable insights: ${allInsights.length}`);
 
-    await this.storage.writeJournal(dreamDate, journalContent);
+      await this.storage.writeJournal(dreamDate, journalContent);
 
-    // Clear one-shot lucid prompt from state
-    if (state.lucidPrompt) {
-      state.lucidPrompt = null;
-      await this.storage.writeState(state);
+      // Clear one-shot lucid prompt from state
+      if (state.lucidPrompt) {
+        state.lucidPrompt = null;
+        await this.storage.writeState(state);
+      }
+
+      process.stdout.write('\n' + morningGift);
     }
-
-    process.stdout.write('\n' + morningGift);
   }
 
   private extractPriorities(entries: JournalEntry[]): string[] {

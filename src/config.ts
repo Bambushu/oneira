@@ -30,9 +30,17 @@ export function loadConfig(cwd: string, projectId: string): OneiraConfig {
   const raw = readFileSync(configPath, 'utf-8');
   const parsed = parse(raw) || {};
 
-  const phases: PhaseId[] = parsed.phases
-    ? parsed.phases.filter((p: string) => PHASE_IDS.includes(p as PhaseId))
-    : [...DEFAULT_CONFIG.phases];
+  let phases: PhaseId[];
+  if (parsed.phases) {
+    for (const p of parsed.phases) {
+      if (!PHASE_IDS.includes(p as PhaseId)) {
+        process.stderr.write(`Warning: unknown phase "${p}" in config, skipping.\n`);
+      }
+    }
+    phases = parsed.phases.filter((p: string) => PHASE_IDS.includes(p as PhaseId));
+  } else {
+    phases = [...DEFAULT_CONFIG.phases];
+  }
 
   const schedule = {
     start: parsed.schedule?.start || DEFAULT_CONFIG.schedule.start,

@@ -104,4 +104,23 @@ describe('FileStorage', () => {
       expect(files).toEqual([]);
     });
   });
+
+  describe('input validation', () => {
+    it('readJournal rejects path traversal dates', async () => {
+      await expect(storage.readJournal('../../etc/passwd')).rejects.toThrow('Invalid date format');
+    });
+
+    it('writeDraft rejects names with ../', async () => {
+      await expect(storage.writeDraft('2026-04-03', '../evil.md', 'x')).rejects.toThrow('Invalid filename');
+    });
+
+    it('writeDraft rejects names with /', async () => {
+      await expect(storage.writeDraft('2026-04-03', 'sub/evil.md', 'x')).rejects.toThrow('Invalid filename');
+    });
+
+    it('memory read rejects path traversal names', async () => {
+      const memoryStore = storage.getMemoryStore();
+      await expect(memoryStore.read('../../../etc/passwd')).rejects.toThrow('Invalid filename');
+    });
+  });
 });

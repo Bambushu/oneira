@@ -64,7 +64,6 @@ program
   .command('dream')
   .description('Run a dream cycle')
   .option('--phases <phases>', 'Comma-separated phase IDs to run')
-  .option('--verbose', 'Print full LLM prompts and responses')
   .action(async (opts) => {
     try {
       const projectId = resolveProjectId();
@@ -92,6 +91,7 @@ program
         llm,
         memory,
         phases: BUILTIN_PHASES,
+        ...(opts.phases ? { partialRun: true } : {}),
       });
 
       process.stdout.write(`Starting dream cycle for ${config.project}...\n\n`);

@@ -15,6 +15,18 @@ export class FileStorage implements StorageAdapter {
     this.baseDir = baseDir;
   }
 
+  private validateDate(date: string): void {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      throw new Error(`Invalid date format: "${date}". Expected YYYY-MM-DD.`);
+    }
+  }
+
+  private validateFilename(name: string): void {
+    if (/[\/\\]/.test(name) || name.includes('..')) {
+      throw new Error(`Invalid filename: "${name}". Must not contain path separators or "..".`);
+    }
+  }
+
   async readState(): Promise<DreamState> {
     const path = join(this.baseDir, 'state.json');
     if (!existsSync(path)) {
@@ -36,12 +48,14 @@ export class FileStorage implements StorageAdapter {
   }
 
   async readJournal(date: string): Promise<string | null> {
+    this.validateDate(date);
     const path = join(this.baseDir, 'dreams', `${date}.md`);
     if (!existsSync(path)) return null;
     return readFileSync(path, 'utf-8');
   }
 
   async writeJournal(date: string, content: string): Promise<void> {
+    this.validateDate(date);
     const dir = join(this.baseDir, 'dreams');
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, `${date}.md`), content);
@@ -57,6 +71,8 @@ export class FileStorage implements StorageAdapter {
   }
 
   async writeDraft(date: string, name: string, content: string): Promise<void> {
+    this.validateDate(date);
+    this.validateFilename(name);
     const dir = join(this.baseDir, 'drafts', date);
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, name), content);
@@ -64,12 +80,14 @@ export class FileStorage implements StorageAdapter {
 
   getMemoryStore(): MemoryStore {
     const memDir = join(this.baseDir, 'memory');
+    const validateFilename = this.validateFilename.bind(this);
     return {
       async list(): Promise<string[]> {
         if (!existsSync(memDir)) return [];
         return readdirSync(memDir).filter((f) => !f.startsWith('.'));
       },
       async read(name: string): Promise<string | null> {
+        validateFilename(name);
         const path = join(memDir, name);
         if (!existsSync(path)) return null;
         return readFileSync(path, 'utf-8');

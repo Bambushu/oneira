@@ -169,4 +169,79 @@ describe('Orchestrator', () => {
 
     expect(storage.state.lucidPrompt).toBeNull();
   });
+
+  it('partial run does not modify state', async () => {
+    const storage = createMockStorage();
+    const phases = new Map<PhaseId, PhaseHandler>([
+      ['consolidation', createMockPhase('consolidation')],
+    ]);
+
+    const orchestrator = new Orchestrator({
+      config: {
+        provider: 'anthropic',
+        phases: ['consolidation'],
+        schedule: { start: '22:00', end: '06:00', timezone: 'Europe/Amsterdam' },
+        storage: 'file',
+        lucid: null,
+        project: 'test',
+      },
+      storage,
+      llm: mockLLM,
+      memory: mockMemory,
+      phases,
+      now: new Date('2026-04-03T22:30:00'),
+      partialRun: true,
+    });
+
+    await orchestrator.run();
+
+    // State should remain untouched (initial empty values)
+    expect(storage.state.currentDreamDate).toBeNull();
+    expect(storage.state.completedPhases).toEqual([]);
+    expect(storage.state.lastDreamAt).toBeNull();
+
+    // But journal should still be written
+    expect(storage.journals.has('2026-04-03')).toBe(true);
+    const journal = storage.journals.get('2026-04-03')!;
+    expect(journal).toContain('## Mock consolidation');
+    // Morning Gift should NOT be in journal for partial runs
+    expect(journal).not.toContain('## Morning Gift');
+  });
+
+  it('continues to next phase when a phase throws', async () => {
+    const storage = createMockStorage();
+    const failingPhase: PhaseHandler = async () => {
+      throw new Error('LLM timeout');
+    };
+    const phases = new Map<PhaseId, PhaseHandler>([
+      ['consolidation', failingPhase],
+      ['review', createMockPhase('review')],
+    ]);
+
+    const orchestrator = new Orchestrator({
+      config: {
+        provider: 'anthropic',
+        phases: ['consolidation', 'review'],
+        schedule: { start: '22:00', end: '06:00', timezone: 'Europe/Amsterdam' },
+        storage: 'file',
+        lucid: null,
+        project: 'test',
+      },
+      storage,
+      llm: mockLLM,
+      memory: mockMemory,
+      phases,
+      now: new Date('2026-04-03T22:30:00'),
+    });
+
+    await orchestrator.run();
+
+    // Both phases should be marked completed (failed one too)
+    expect(storage.state.completedPhases).toContain('consolidation');
+    expect(storage.state.completedPhases).toContain('review');
+
+    const journal = storage.journals.get('2026-04-03')!;
+    expect(journal).toContain('Phase failed: LLM timeout');
+    expect(journal).toContain('## Mock review');
+  });
 });
