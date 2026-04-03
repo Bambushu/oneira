@@ -48,7 +48,7 @@ Drafts ready
 - PR description for feat/auth-session-rotation
 - Changelog entry for v0.4.0
 
-Dream quality: 8.4/10
+Dream quality: 8/10
 ```
 
 That is the bar. A developer should read it and know what to do next.
