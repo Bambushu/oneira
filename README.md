@@ -28,31 +28,30 @@ If you work in a repo every day, the output should feel less like a log and more
 
 ## What You Wake Up To
 
-You open your terminal. One command:
-
-```bash
+```
 $ oneira journal
+
+  Morning Gift - April 3, 2026
+
+  1. Currency bug in checkout                          [revenue-impacting]
+     UI shows EUR, payment intent defaults to GBP.
+     -> inspect checkout/formatTotal.ts vs payments/createIntent.ts
+
+  2. PR #47 is stalling                          [9 days, 3 reviewers idle]
+     Touches auth, billing, and middleware in one diff.
+     -> split middleware extraction into its own PR first
+
+  3. Tuesday deploys cause 2x hotfixes                       [hypothesis]
+     6 of last 8 hotfixes landed within 24h of Tuesday releases.
+     -> compare hotfix rate for smaller Wed/Thu deploys over 2 weeks
+
+  Drafts ready:  PR description for feat/auth-session-rotation
+                 Changelog entry for v0.4.0
+
+  Dream quality: 8/10  |  11 insights  |  0 nightmares
 ```
 
-> **Morning Gift** - April 3, 2026
->
-> **1. Currency bug in checkout** (revenue-impacting)
-> UI shows EUR, but the payment intent still defaults to GBP.
-> *Check `checkout/formatTotal.ts` against `payments/createIntent.ts`.*
->
-> **2. PR #47 is stalling** (9 days open, 3 reviewers requested)
-> It touches auth, billing, and middleware in one diff.
-> *Split the middleware extraction into its own PR first.*
->
-> **3. Tuesday deploys cause 2x hotfixes** (hypothesis)
-> 6 of the last 8 hotfixes landed within 24h of a Tuesday release.
-> *Test: compare hotfix rate for smaller Wed/Thu deploys over 2 weeks.*
->
-> **Drafts ready:** PR description for `feat/auth-session-rotation`, changelog for v0.4.0
->
-> Dream quality: 8/10 - 11 insights, 0 nightmares
-
-Three priorities. Each tells you *what*, *why it matters*, and *what to do next*. Plus pre-written drafts you can edit and ship.
+Each priority tells you what, why it matters, and what to do next.
 
 ## Why It Exists
 
