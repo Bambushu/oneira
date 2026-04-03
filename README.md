@@ -2,6 +2,8 @@
 
 > Your agent sleeps. Oneira dreams.
 
+> **Status:** 0.0.1 early release. Core architecture tested (51 tests), real LLM provider testing in progress. Contributions welcome.
+
 7-phase overnight cognition for AI agents. Other tools consolidate memory while your agent sleeps. Oneira makes your agent *think* while it sleeps.
 
 ## Quick Start
