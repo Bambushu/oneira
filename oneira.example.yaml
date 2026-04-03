@@ -1,0 +1,20 @@
+# oneira.example.yaml
+# Copy to oneira.yaml and customize
+
+provider: anthropic
+
+phases:
+  - consolidation
+  - synthesis
+  - hypothesis
+  - simulation
+  - experimentation
+  - drafts
+  - review
+
+schedule:
+  start: "22:00"
+  end: "06:00"
+  timezone: auto
+
+lucid: null  # Set a string to focus all phases on a topic
