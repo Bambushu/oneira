@@ -9,6 +9,10 @@ Oneira runs a 7-phase dream over your repo while you sleep, then leaves you a mo
 [![MIT License](https://img.shields.io/github/license/Bambushu/oneira)](https://github.com/Bambushu/oneira/blob/main/LICENSE)
 [![Status: early release](https://img.shields.io/badge/status-early%20release-orange)](https://github.com/Bambushu/oneira)
 
+<p align="center">
+  <img src="assets/terminal-demo.svg" alt="oneira dream cycle" width="680">
+</p>
+
 Most agent tooling helps with memory. Oneira helps with reflection.
 
 Instead of only summarizing what happened, it uses the quiet hours to:

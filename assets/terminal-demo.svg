@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="520" viewBox="0 0 680 520">
+  <defs>
+    <style>
+      .bg { fill: #1a1b26; }
+      .titlebar { fill: #24283b; }
+      .btn-close { fill: #f7768e; }
+      .btn-min { fill: #e0af68; }
+      .btn-max { fill: #9ece6a; }
+      .title { fill: #565f89; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12px; }
+      .prompt { fill: #7aa2f7; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; }
+      .cmd { fill: #c0caf5; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; }
+      .dim { fill: #565f89; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; }
+      .phase { fill: #9ece6a; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; }
+      .check { fill: #9ece6a; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; }
+      .heading { fill: #bb9af7; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; font-weight: bold; }
+      .priority { fill: #e0af68; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; }
+      .insight { fill: #c0caf5; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; }
+      .score { fill: #7dcfff; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; }
+      .separator { fill: #3b4261; font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 13px; }
+    </style>
+  </defs>
+
+  <!-- Window -->
+  <rect class="bg" width="680" height="520" rx="10"/>
+
+  <!-- Title bar -->
+  <rect class="titlebar" width="680" height="36" rx="10"/>
+  <rect class="titlebar" y="10" width="680" height="26"/>
+  <circle class="btn-close" cx="20" cy="18" r="6"/>
+  <circle class="btn-min" cx="40" cy="18" r="6"/>
+  <circle class="btn-max" cx="60" cy="18" r="6"/>
+  <text class="title" x="340" y="22" text-anchor="middle">oneira dream</text>
+
+  <!-- Terminal content -->
+  <text class="prompt" x="20" y="62">$</text>
+  <text class="cmd" x="34" y="62">npx oneira dream</text>
+
+  <text class="dim" x="20" y="84">Starting dream cycle for project a1b2c3d4...</text>
+
+  <text class="check" x="20" y="112">&#10003;</text>
+  <text class="phase" x="36" y="112">Memory Consolidation</text>
+  <text class="dim" x="250" y="112">3 repos scanned, 2 stale memories found</text>
+
+  <text class="check" x="20" y="134">&#10003;</text>
+  <text class="phase" x="36" y="134">Creative Synthesis</text>
+  <text class="dim" x="230" y="134">3 pairings, 2 kept (scores 15, 14)</text>
+
+  <text class="check" x="20" y="156">&#10003;</text>
+  <text class="phase" x="36" y="156">Hypothesis Generation</text>
+  <text class="dim" x="258" y="156">3 testable hypotheses with experiments</text>
+
+  <text class="check" x="20" y="178">&#10003;</text>
+  <text class="phase" x="36" y="178">Simulation &amp; Rehearsal</text>
+  <text class="dim" x="258" y="178">4 scenarios, 1 vulnerability flagged</text>
+
+  <text class="check" x="20" y="200">&#10003;</text>
+  <text class="phase" x="36" y="200">Self-Experimentation</text>
+  <text class="dim" x="250" y="200">2 A/B experiments proposed</text>
+
+  <text class="check" x="20" y="222">&#10003;</text>
+  <text class="phase" x="36" y="222">Draft Factory</text>
+  <text class="dim" x="178" y="222">PR description + changelog drafted</text>
+
+  <text class="check" x="20" y="244">&#10003;</text>
+  <text class="phase" x="36" y="244">Adversarial Self-Review</text>
+  <text class="dim" x="272" y="244">quality 8/10, 0 critical issues</text>
+
+  <!-- Separator -->
+  <text class="separator" x="20" y="272">------------------------------------------------------</text>
+
+  <!-- Morning Gift -->
+  <text class="heading" x="20" y="296">Morning Gift</text>
+
+  <text class="insight" x="20" y="320">Top priorities for today:</text>
+
+  <text class="priority" x="20" y="344">1.</text>
+  <text class="insight" x="38" y="344">Checkout currency mismatch: EUR shown, GBP charged</text>
+
+  <text class="priority" x="20" y="366">2.</text>
+  <text class="insight" x="38" y="366">PR #47 open 9 days, touches auth+billing - split it</text>
+
+  <text class="priority" x="20" y="388">3.</text>
+  <text class="insight" x="38" y="388">Tuesday deploys cause 2x hotfixes - test smaller batches</text>
+
+  <text class="dim" x="20" y="416">Drafts ready: 2</text>
+  <text class="dim" x="200" y="416">Insights: 11</text>
+  <text class="score" x="350" y="416">Dream quality: 8/10</text>
+
+  <text class="separator" x="20" y="440">------------------------------------------------------</text>
+
+  <text class="dim" x="20" y="464">Journal saved to ~/.oneira/a1b2c3d4/dreams/2026-04-03.md</text>
+  <text class="phase" x="20" y="486">Dream cycle complete.</text>
+
+  <text class="prompt" x="20" y="510">$</text>
+  <text class="dim" x="34" y="510">&#9608;</text>
+</svg>
