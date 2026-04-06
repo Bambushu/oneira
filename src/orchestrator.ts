@@ -9,8 +9,10 @@ import type {
   JournalEntry,
   DreamState,
   Draft,
+  WakelockAdapter,
+  WakelockHandle,
 } from './types.js';
-import { PHASE_JOURNAL_HEADERS } from './types.js';
+import { PHASE_JOURNAL_HEADERS, DEFAULT_CATCHUP } from './types.js';
 
 export function calculateDreamDate(now: Date): string {
   const hour = now.getHours();
@@ -21,12 +23,18 @@ export function calculateDreamDate(now: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+export interface HeartbeatResult {
+  phasesRun: PhaseId[];
+  stoppedReason: 'all_done' | 'outside_hours' | 'catchup_limit' | 'no_chain' | 'budget' | 'policy_none';
+}
+
 interface OrchestratorOptions {
   config: OneiraConfig;
   storage: StorageAdapter;
   llm: LLMAdapter;
   memory: MemoryStore;
   phases: Map<PhaseId, PhaseHandler>;
+  wakelock?: WakelockAdapter;
   now?: Date;
   partialRun?: boolean;
 }
@@ -37,6 +45,7 @@ export class Orchestrator {
   private llm: LLMAdapter;
   private memory: MemoryStore;
   private phases: Map<PhaseId, PhaseHandler>;
+  private wakelock?: WakelockAdapter;
   private now: Date;
   private partialRun: boolean;
 
@@ -46,11 +55,40 @@ export class Orchestrator {
     this.llm = options.llm;
     this.memory = options.memory;
     this.phases = options.phases;
+    this.wakelock = options.wakelock;
     this.now = options.now || new Date();
     this.partialRun = options.partialRun || false;
   }
 
   async run(): Promise<void> {
+    // Acquire wakelock if available
+    let wakelockHandle: WakelockHandle | null = null;
+    if (this.wakelock?.isSupported()) {
+      try {
+        // Calculate dream window duration from config schedule
+        const [startH] = this.config.schedule.start.split(':').map(Number);
+        const [endH] = this.config.schedule.end.split(':').map(Number);
+        const hours = endH > startH ? endH - startH : (24 - startH + endH);
+        const durationSeconds = hours * 3600 + 900; // + 15 min margin
+        wakelockHandle = await this.wakelock.acquire(durationSeconds);
+        process.stdout.write(`Wakelock acquired (${hours}h ${Math.round(durationSeconds / 60)}m)\n`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        process.stderr.write(`[WARN] Wakelock failed: ${msg}. Continuing without sleep prevention.\n`);
+      }
+    }
+
+    try {
+      await this._runDream();
+    } finally {
+      if (wakelockHandle?.isActive()) {
+        await wakelockHandle.release();
+        process.stdout.write('Wakelock released.\n');
+      }
+    }
+  }
+
+  private async _runDream(): Promise<void> {
     const dreamDate = calculateDreamDate(this.now);
     let state: DreamState;
 
@@ -103,10 +141,21 @@ export class Orchestrator {
     const journalEntries: JournalEntry[] = [];
     const allInsights: string[] = [];
     const allDrafts: Draft[] = [];
+    let phasesRunThisHeartbeat = 0;
+    let lastPhaseRun: PhaseId | null = null;
 
     // Run each enabled phase in order
     for (const phaseId of this.config.phases) {
       if (state.completedPhases.includes(phaseId)) continue;
+
+      // Catch-up gate: after the first phase, check if we're allowed to continue
+      if (phasesRunThisHeartbeat > 0 && !this.partialRun) {
+        const gate = this.shouldContinue(lastPhaseRun!, phaseId, phasesRunThisHeartbeat);
+        if (gate !== null) {
+          process.stdout.write(`Stopping heartbeat: ${gate}. Next phase (${phaseId}) will run on next heartbeat.\n`);
+          break;
+        }
+      }
 
       // Idempotency: check if journal already has this phase's header
       const header = PHASE_JOURNAL_HEADERS[phaseId];
@@ -144,6 +193,8 @@ export class Orchestrator {
           await this.storage.writeState(state);
         }
         process.stdout.write(`Dream phase ${phaseId} failed. ${state.completedPhases.length}/${this.config.phases.length} phases done.\n`);
+        phasesRunThisHeartbeat++;
+        lastPhaseRun = phaseId;
         continue;
       }
 
@@ -175,6 +226,8 @@ export class Orchestrator {
         await this.storage.writeState(state);
       }
 
+      phasesRunThisHeartbeat++;
+      lastPhaseRun = phaseId;
       process.stdout.write(`Dream phase ${phaseId} complete. ${state.completedPhases.length}/${this.config.phases.length} phases done.\n`);
     }
 
@@ -207,6 +260,37 @@ export class Orchestrator {
 
       process.stdout.write('\n' + morningGift);
     }
+  }
+
+  /**
+   * Check if the orchestrator should continue to the next phase in the same heartbeat.
+   * Returns null if OK to continue, or a reason string if it should stop.
+   */
+  private shouldContinue(lastPhase: PhaseId, nextPhase: PhaseId, phasesRun: number): string | null {
+    const catchUp = this.config.catchUp || DEFAULT_CATCHUP;
+
+    if (catchUp.policy === 'none') {
+      return 'policy_none';
+    }
+
+    if (catchUp.policy === 'unlimited') {
+      return null;
+    }
+
+    // policy === 'bounded'
+    if (phasesRun >= catchUp.maxPhasesPerHeartbeat) {
+      return 'catchup_limit';
+    }
+
+    const isChainable = catchUp.chainablePairs.some(
+      ([a, b]) => a === lastPhase && b === nextPhase
+    );
+
+    if (!isChainable) {
+      return 'no_chain';
+    }
+
+    return null;
   }
 
   private extractPriorities(entries: JournalEntry[]): string[] {

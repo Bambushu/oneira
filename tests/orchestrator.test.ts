@@ -9,7 +9,14 @@ import type {
   LLMAdapter,
   MemoryStore,
   PhaseId,
+  CatchUpConfig,
 } from '../src/types.js';
+
+const UNLIMITED_CATCHUP: CatchUpConfig = {
+  policy: 'unlimited',
+  maxPhasesPerHeartbeat: 99,
+  chainablePairs: [],
+};
 
 function createMockStorage(): StorageAdapter & { state: DreamState; journals: Map<string, string>; drafts: string[] } {
   const state: DreamState = {
@@ -84,6 +91,7 @@ describe('Orchestrator', () => {
         provider: 'anthropic',
         phases: ['consolidation', 'review'],
         schedule: { start: '22:00', end: '06:00', timezone: 'Europe/Amsterdam' },
+        catchUp: UNLIMITED_CATCHUP,
         storage: 'file',
         lucid: null,
         project: 'test',
@@ -208,6 +216,102 @@ describe('Orchestrator', () => {
     expect(journal).not.toContain('## Morning Gift');
   });
 
+  it('bounded catch-up stops after first phase when no chain exists', async () => {
+    const storage = createMockStorage();
+    const phases = new Map<PhaseId, PhaseHandler>([
+      ['consolidation', createMockPhase('consolidation')],
+      ['synthesis', createMockPhase('synthesis')],
+      ['review', createMockPhase('review')],
+    ]);
+
+    const orchestrator = new Orchestrator({
+      config: {
+        provider: 'anthropic',
+        phases: ['consolidation', 'synthesis', 'review'],
+        schedule: { start: '22:00', end: '06:00', timezone: 'Europe/Amsterdam' },
+        catchUp: { policy: 'bounded', maxPhasesPerHeartbeat: 2, chainablePairs: [] },
+        storage: 'file',
+        lucid: null,
+        project: 'test',
+      },
+      storage,
+      llm: mockLLM,
+      memory: mockMemory,
+      phases,
+      now: new Date('2026-04-03T22:30:00'),
+    });
+
+    await orchestrator.run();
+
+    // Only first phase should run - no chainable pairs defined
+    expect(storage.state.completedPhases).toEqual(['consolidation']);
+  });
+
+  it('bounded catch-up allows chainable pair to run together', async () => {
+    const storage = createMockStorage();
+    // Pre-complete earlier phases so drafts is the first pending phase
+    storage.state.currentDreamDate = '2026-04-03';
+    storage.state.completedPhases = ['consolidation', 'synthesis', 'hypothesis', 'simulation', 'experimentation'] as PhaseId[];
+    storage.journals.set('2026-04-03', '# Journal\n\nPrevious phases done');
+
+    const phases = new Map<PhaseId, PhaseHandler>([
+      ['drafts', createMockPhase('drafts')],
+      ['review', createMockPhase('review')],
+    ]);
+
+    const orchestrator = new Orchestrator({
+      config: {
+        provider: 'anthropic',
+        phases: ['consolidation', 'synthesis', 'hypothesis', 'simulation', 'experimentation', 'drafts', 'review'],
+        schedule: { start: '22:00', end: '06:00', timezone: 'Europe/Amsterdam' },
+        catchUp: { policy: 'bounded', maxPhasesPerHeartbeat: 2, chainablePairs: [['drafts', 'review']] },
+        storage: 'file',
+        lucid: null,
+        project: 'test',
+      },
+      storage,
+      llm: mockLLM,
+      memory: mockMemory,
+      phases,
+      now: new Date('2026-04-03T23:30:00'),
+    });
+
+    await orchestrator.run();
+
+    // Both drafts and review should run - they're a chainable pair
+    expect(storage.state.completedPhases).toContain('drafts');
+    expect(storage.state.completedPhases).toContain('review');
+  });
+
+  it('catch-up policy none stops after every phase', async () => {
+    const storage = createMockStorage();
+    const phases = new Map<PhaseId, PhaseHandler>([
+      ['consolidation', createMockPhase('consolidation')],
+      ['review', createMockPhase('review')],
+    ]);
+
+    const orchestrator = new Orchestrator({
+      config: {
+        provider: 'anthropic',
+        phases: ['consolidation', 'review'],
+        schedule: { start: '22:00', end: '06:00', timezone: 'Europe/Amsterdam' },
+        catchUp: { policy: 'none', maxPhasesPerHeartbeat: 2, chainablePairs: [] },
+        storage: 'file',
+        lucid: null,
+        project: 'test',
+      },
+      storage,
+      llm: mockLLM,
+      memory: mockMemory,
+      phases,
+      now: new Date('2026-04-03T22:30:00'),
+    });
+
+    await orchestrator.run();
+
+    expect(storage.state.completedPhases).toEqual(['consolidation']);
+  });
+
   it('continues to next phase when a phase throws', async () => {
     const storage = createMockStorage();
     const failingPhase: PhaseHandler = async () => {
@@ -223,6 +327,7 @@ describe('Orchestrator', () => {
         provider: 'anthropic',
         phases: ['consolidation', 'review'],
         schedule: { start: '22:00', end: '06:00', timezone: 'Europe/Amsterdam' },
+        catchUp: UNLIMITED_CATCHUP,
         storage: 'file',
         lucid: null,
         project: 'test',

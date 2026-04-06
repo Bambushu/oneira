@@ -1,4 +1,6 @@
-import type { LLMAdapter } from '../types.js';
+import type { LLMAdapter, WakelockAdapter, WakelockMode } from '../types.js';
+import { NoopWakelockAdapter } from './wakelock-noop.js';
+import { MacOSWakelockAdapter } from './wakelock-macos.js';
 
 export async function createAdapter(provider: string): Promise<LLMAdapter> {
   switch (provider) {
@@ -7,6 +9,16 @@ export async function createAdapter(provider: string): Promise<LLMAdapter> {
     default:
       throw new Error(`Unknown provider: "${provider}". Supported: anthropic`);
   }
+}
+
+export function createWakelockAdapter(mode: WakelockMode): WakelockAdapter {
+  if (mode === 'none') return new NoopWakelockAdapter();
+  if (mode === 'macos') return new MacOSWakelockAdapter();
+
+  // 'auto' - pick based on platform
+  const macos = new MacOSWakelockAdapter();
+  if (macos.isSupported()) return macos;
+  return new NoopWakelockAdapter();
 }
 
 async function createAnthropicAdapter(): Promise<LLMAdapter> {

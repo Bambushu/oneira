@@ -161,10 +161,38 @@ schedule:
   end: "06:00"
   timezone: auto
 
+catchUp:
+  policy: bounded        # none | bounded | unlimited
+  maxPhasesPerHeartbeat: 2
+  chainablePairs:
+    - [drafts, review]   # only these phases can run back-to-back
+
+wakelock: auto           # auto | macos | none
+
 lucid: null
 ```
 
 Remove phases to disable them. Reorder phases if you want a different sequence.
+
+### Catch-Up Policy
+
+When phases run across multiple heartbeats (the normal mode), the catch-up policy controls what happens if heartbeats are missed:
+
+- **`none`** -- one phase per heartbeat, always. Missed phases stay missed.
+- **`bounded`** (default) -- allows chaining only for explicitly listed phase pairs. Everything else waits for a fresh heartbeat. This protects creative quality: divergent phases like synthesis and hypothesis benefit from temporal separation.
+- **`unlimited`** -- all phases can run in a single heartbeat. Fast recovery, but creative quality degrades from context pressure and anchoring.
+
+`chainablePairs` defines which phases may run back-to-back. The default is empty (no chaining). A common setup is `[drafts, review]` since reviewing drafts you just wrote benefits from having them in context.
+
+### Wakelock
+
+Oneira can prevent the host machine from sleeping during dream hours:
+
+- **`auto`** (default) -- uses `caffeinate` on macOS, no-op elsewhere
+- **`macos`** -- force macOS caffeinate adapter
+- **`none`** -- disable sleep prevention
+
+The wakelock is acquired at the start of `run()` and released when it completes. If it fails, the dream continues without sleep prevention.
 
 ## What Makes Oneira Different
 
@@ -187,6 +215,7 @@ If all you need is memory consolidation, Oneira is probably too much. If you wan
 import {
   BUILTIN_PHASES,
   createAdapter,
+  createWakelockAdapter,
   FileStorage,
   loadConfig,
   Orchestrator,
@@ -197,6 +226,7 @@ const projectId = resolveProjectId();
 const config = loadConfig(process.cwd(), projectId);
 const storage = new FileStorage(`~/.oneira/${projectId}`);
 const llm = await createAdapter(config.provider);
+const wakelock = createWakelockAdapter(config.wakelock);
 
 const orchestrator = new Orchestrator({
   config,
@@ -204,10 +234,68 @@ const orchestrator = new Orchestrator({
   llm,
   memory: storage.getMemoryStore(),
   phases: BUILTIN_PHASES,
+  wakelock,
 });
 
 await orchestrator.run();
 ```
+
+## Bring Your Own Agent Platform
+
+Oneira doesn't care how you trigger it. It's an npm package, not a standalone agent. Plug it into whatever scheduler or agent platform you use:
+
+**System cron:**
+```bash
+npx oneira schedule
+# prints: 0 22 * * * cd /your/repo && npx oneira dream
+```
+
+**Any agent with cron support** (Hermes, OpenClaw, custom):
+```
+Schedule: 0 22 * * *
+Prompt: "Run the dream cycle for this project"
+Script: npx oneira dream
+```
+
+**Custom LLM adapter:**
+```ts
+import type { LLMAdapter } from 'oneira';
+
+const myAdapter: LLMAdapter = {
+  async complete(prompt) {
+    // call your preferred LLM
+    return await myLLM.generate(prompt);
+  },
+  async completeJSON(prompt, schema) {
+    // return parsed JSON matching the schema
+    return await myLLM.generateJSON(prompt, schema);
+  },
+};
+
+const orchestrator = new Orchestrator({
+  config, storage, memory,
+  llm: myAdapter,
+  phases: BUILTIN_PHASES,
+});
+```
+
+**Custom wakelock adapter** (Linux example):
+```ts
+import type { WakelockAdapter, WakelockHandle } from 'oneira';
+
+const systemdWakelock: WakelockAdapter = {
+  isSupported: () => process.platform === 'linux',
+  async acquire(seconds) {
+    const proc = spawn('systemd-inhibit', ['--what=idle:sleep', `--who=oneira`, 'sleep', String(seconds)]);
+    return {
+      isActive: () => proc.exitCode === null,
+      release: async () => proc.kill(),
+    };
+  },
+};
+```
+
+The three adapter interfaces (`LLMAdapter`, `WakelockAdapter`, `StorageAdapter`) are the only integration points. Everything else is handled by the orchestrator.
 
 ## Storage and Resilience
 

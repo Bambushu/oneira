@@ -60,6 +60,7 @@ describe('integration: full dream cycle', () => {
       provider: 'anthropic',
       phases: ['consolidation', 'synthesis', 'hypothesis', 'simulation', 'experimentation', 'drafts', 'review'],
       schedule: { start: '22:00', end: '06:00', timezone: 'Europe/Amsterdam' },
+      catchUp: { policy: 'unlimited', maxPhasesPerHeartbeat: 99, chainablePairs: [] },
       storage: 'file',
       lucid: null,
       project: 'integration-test',

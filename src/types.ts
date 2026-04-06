@@ -1,3 +1,29 @@
+export type CatchUpPolicy = 'none' | 'bounded' | 'unlimited';
+
+export interface CatchUpConfig {
+  policy: CatchUpPolicy;
+  maxPhasesPerHeartbeat: number;
+  chainablePairs: [PhaseId, PhaseId][];
+}
+
+export const DEFAULT_CATCHUP: CatchUpConfig = {
+  policy: 'bounded',
+  maxPhasesPerHeartbeat: 2,
+  chainablePairs: [],
+};
+
+export type WakelockMode = 'auto' | 'macos' | 'none';
+
+export interface WakelockHandle {
+  release(): Promise<void>;
+  isActive(): boolean;
+}
+
+export interface WakelockAdapter {
+  acquire(durationSeconds: number): Promise<WakelockHandle>;
+  isSupported(): boolean;
+}
+
 export interface OneiraConfig {
   provider: 'anthropic';
   phases: PhaseId[];
@@ -6,6 +32,8 @@ export interface OneiraConfig {
     end: string;
     timezone: string;
   };
+  catchUp: CatchUpConfig;
+  wakelock: WakelockMode;
   storage: 'file';
   lucid: string | null;
   project: string;
@@ -113,6 +141,8 @@ export const DEFAULT_CONFIG: Omit<OneiraConfig, 'project'> = {
     end: '06:00',
     timezone: 'auto',
   },
+  catchUp: { ...DEFAULT_CATCHUP },
+  wakelock: 'auto',
   storage: 'file',
   lucid: null,
 };
